@@ -1,8 +1,12 @@
 const express = require("express");
+var cors = require('cors')
 const mysql = require('mysql');
+var request_API = require('request');
+const path = require('path');
 
 const PORT = 1234;
 const app = express();
+app.use(cors())
 
 const connection = mysql.createConnection({
 	host: 'localhost',
@@ -15,7 +19,6 @@ connection.connect((err) => {
 	if (err) throw err;
 	console.log('SQL Connected!');
 });
-
 
 function addWord_toTable(word_tobe_searched) {
 	var query_findword = "select * from poem_words where word = ?";
@@ -62,6 +65,11 @@ function top10_results() {
 
 }
 
+app.get('/', function (req, res) {
+	res.sendFile(path.join(__dirname + '/index.html'));
+	//__dirname : It will resolve to your project folder.
+});
+
 app.get("/top10", (request, response) => {
 	top10_results()
 		.then(function (data) {
@@ -74,10 +82,42 @@ app.get("/top10", (request, response) => {
 		});
 });
 
-app.get("/addWord", (request, response) => {
-	console.log(request.query.word);
-	addWord_toTable(request.query.word);
-	response.send("yoyo");
+app.get("/autocomplete", (request, response) => {
+	var search_word = request.query.word;
+
+	var options = {
+		'method': 'GET',
+		'url': 'https://api.datamuse.com/sug?s=' + search_word,
+		'headers': {
+			'Cache-Control': 'no-cache'
+		}
+	};
+	request_API(options, function (error, data) {
+		if (error) {
+			console.log(error);
+		}
+		else {
+			response.send(data.body);
+		}
+	});
+
+});
+
+app.get("/rhymingwords", (request, response) => {
+	var search_word = request.query.word.toLowerCase();
+	addWord_toTable(search_word);
+	var options = {
+		'method': 'GET',
+		'url': 'https://api.datamuse.com/words?rel_rhy=' + search_word,
+		'headers': {
+			'Cache-Control': 'no-cache'
+		}
+	};
+	request_API(options, function (error, data) {
+		if (error) throw new Error(error);
+		response.send(data.body);
+	});
+
 });
 
 app.listen(PORT, () => {
@@ -90,5 +130,13 @@ connection.end((err) => {
   // The connection is terminated gracefully
   // Ensures all remaining queries are executed
   // Then sends a quit packet to the MySQL server.
+});
+*/
+
+/*
+app.get("/addWord", (request, response) => {
+	console.log(request.query.word);
+	addWord_toTable(request.query.word);
+	response.send("word added");
 });
 */
